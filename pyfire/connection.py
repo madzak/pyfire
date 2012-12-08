@@ -1,14 +1,11 @@
 import cookielib
-import copy
 import httplib
 import json
 import string
-import types
 import urllib
 import urllib2
 
 from twisted.internet import reactor
-from twisted.protocols import basic
 from twisted.web import client
 from twisted.web import http_headers
 

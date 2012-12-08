@@ -3,7 +3,7 @@ from .entity import CampfireEntity
 class User(CampfireEntity):
     """ Campfire user """
     
-    def __init__(self, campfire, id, current=False):
+    def __init__(self, campfire, id, user_data=None, current=False):
         """ Initialize.
 
         Args:
@@ -14,5 +14,9 @@ class User(CampfireEntity):
             current (bool): Wether user is current user, or not
         """
         super(User, self).__init__(campfire)
-        self.set_data(self._connection.get("users/%s" % id, key="user"))
+        if user_data:
+            self.set_data(user_data)
+        else:
+            self.set_data(campfire.call_api("get", "users/{}".format(id)).json["user"])
+        
         self.current = current

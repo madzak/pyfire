@@ -1,8 +1,5 @@
 import operator
 
-from threading import Thread
-
-from .connection import Connection
 from .entity import CampfireEntity
 from .message import Message
 from .stream import Stream
@@ -22,10 +19,7 @@ class Room(CampfireEntity):
         self._load(id)
 
     def _load(self, id=None):
-        self.set_data(
-            self._connection.get("room/%s" % (id or self.id)),
-            ["created_at", "updated_at"]
-        )
+        self.set_data(self._campfire.call_api("get", "room/{}".format(id or self.id)).json, ["created_at", "updated_at"])
 
     def get_stream(self, error_callback=None, live=True):
         """ Get room stream to listen for messages.
@@ -46,7 +40,7 @@ class Room(CampfireEntity):
         Returns:
             array. List of uploads
         """
-        return self._connection.get("room/%s/uploads" % self.id, key="uploads")
+        return self._campfire.call_api("get", "rooms/{}/uploads".format(self.id)).json['uploads']
 
     def get_users(self, sort=True):
         """ Get list of users in the room.
@@ -68,7 +62,7 @@ class Room(CampfireEntity):
         Returns:
             bool. Success
         """
-        return self._connection.post("room/%s/join" % self.id)["success"]
+        return self._campfire.call_api("post", "room/{}/join".format(self.id)).json["success"]
 
     def leave(self):
         """ Leave room.
@@ -76,7 +70,7 @@ class Room(CampfireEntity):
         Returns:
             bool. Success
         """
-        return self._connection.post("room/%s/leave" % self.id)["success"]
+        return self._campfire.call_api("post", "room/{}/leave".format(self.id)).json["success"]
 
     def lock(self):
         """ Lock room.
@@ -84,7 +78,7 @@ class Room(CampfireEntity):
         Returns:
             bool. Success
         """
-        return self._connection.post("room/%s/lock" % self.id)["success"]
+        return self._campfire.call_api("post", "room/{}/lock".format(self.id)).json["success"]
 
     def recent(self, message_id=None, limit=None):
         """ Recent messages.
@@ -101,7 +95,7 @@ class Room(CampfireEntity):
             parameters["since_message_id"] = message_id
         if limit:
             parameters["limit"] = limit
-        messages = self._connection.get("room/%s/recent" % self.id, key="messages", parameters=parameters)
+        messages = self._campfire.call_api("get", "room/{}/recent".format(self.id), params=parameters).json["messages"]
         if messages:
             messages = [Message(self._campfire, message) for message in messages]
         return messages
@@ -119,9 +113,10 @@ class Room(CampfireEntity):
             return False
 
         result = self._connection.put("room/%s" % self.id, {"room": {"name": name}})
-        if result["success"]:
+        result = self._campfire.call_api("put", "room/{}".format(self.id), data={"room":{"name": name }})
+        if result.json["success"]:
             self._load()
-        return result["success"]
+        return result.json["success"]
 
     def set_topic(self, topic):
         """ Set the room topic.
@@ -134,11 +129,11 @@ class Room(CampfireEntity):
         """
         if not topic:
             topic = ''
-        result = self._connection.put("room/%s" % self.id, {"room": {"topic": topic}})
-        if result["success"]:
+        result = self._campfire.call_api("put", "room/{}".format(self.id), data={"room": {"topic": topic}})
+        if result.json["success"]:
             self._load()
 
-        return result["success"]
+        return result.json["success"]
 
     def speak(self, message):
         """ Post a message.
@@ -153,16 +148,11 @@ class Room(CampfireEntity):
         if not isinstance(message, Message):
             message = Message(campfire, message)
 
-        result = self._connection.post(
-            "room/%s/speak" % self.id,
-            {"message": message.get_data()},
-            parse_data=True,
-            key="message"
-        )
+        result = self._campfire.call_api("post", "room/{}/speak".format(self.id)).json["message"]
 
-        if result["success"]:
+        if result.json["success"]:
             return Message(campfire, result["data"])
-        return result["success"]
+        return result.json["success"]
 
     def transcript(self, for_date=None):
         """ Recent messages.
@@ -176,7 +166,7 @@ class Room(CampfireEntity):
         url = "room/%s/transcript" % self.id
         if for_date:
             url = "%s/%d/%d/%d" % (url, for_date.year, for_date.month, for_date.day)
-        messages = self._connection.get(url, key="messages")
+        messages = self._campfire.call_api("get", url).json["messages"]
         if messages:
             messages = [Message(self._campfire, message) for message in messages]
         return messages
@@ -187,7 +177,7 @@ class Room(CampfireEntity):
         Returns:
             bool. Success
         """
-        return self._connection.post("room/%s/unlock" % self.id)["success"]
+        return self._campfire.call_api("post", "room/{}/unlock".format(self.id)).json["success"]
 
     def upload(self, path, progress_callback=None, finished_callback=None, error_callback=None):
         """ Create a new thread to upload a file (thread should be

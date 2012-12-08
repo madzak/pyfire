@@ -59,9 +59,6 @@ class CampfireEntity(Entity):
         """
         super(CampfireEntity, self).__init__(data)
         self._campfire = campfire
-        self._connection = None
-        if self._campfire:
-            self._connection = self._campfire.get_connection()
 
     def get_campfire(self):
         """ Get campfire instance.
@@ -70,22 +67,6 @@ class CampfireEntity(Entity):
             :class:`Campfire`. Campfire instance
         """
         return self._campfire
-
-    def get_connection(self):
-        """ Get campfire connection.
-
-        Returns:
-            :class:`Connection`. Connection
-        """
-        return self._connection
-
-    def set_connection(self, connection):
-        """ Set campfire connection.
-
-        Args:
-            connection (:class:`Connection`): Connection
-        """
-        self._connection = connection
     
     def set_data(self, data={}, datetime_fields=[]):
         """ Set entity data

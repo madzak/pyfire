@@ -1,12 +1,12 @@
-import operator
-import urllib
+import operator, urllib, requests
 
-from .connection import Connection
 from .message import Message
 from .user import User
 from .room import Room
 
 class RoomNotFoundException(Exception):
+    pass
+class UserNotFoundException(Exception):
     pass
 
 class Campfire(object):
@@ -36,20 +36,21 @@ class Campfire(object):
         self._rooms = {}
 
         if not self._user:
-            _connection = Connection(url="%s/users/me" % self.base_url, user=username, password=password)
-            user = _connection.get(key="user")
-            
-        self._connection = Connection(
-            base_url=self.base_url, 
-            user=self._user.token if self._user else user["api_auth_token"], 
-            password="x"
-        )
+            user_request = requests.get("{}/users/me.json".format(self.base_url), auth=(username, password))
+            if user_request.status_code == 200:
+                user = user_request.json['user']
 
-        if self._user:
-            self._user.set_connection(self._connection)
-        else:
-            self._user = User(self, user["id"], current=True)
-            self._user.token = user["api_auth_token"]
+                self._user = User(self, user["id"], user_data=user, current=True)
+                self._user.token = user["api_auth_token"]
+            else:
+                raise UserNotFoundException();
+
+    def call_api(self, method, url, **kwargs):
+        combined_url = "{}/{}.json".format(self.base_url, url)
+        kwargs['auth'] = (self._user.token, "x",)
+
+        return requests.request(method, combined_url, **kwargs)
+
 
     def __copy__(self):
         """ Clone.
@@ -65,14 +66,6 @@ class Campfire(object):
             self._user
         )
 
-    def get_connection(self):
-        """ Get connection
-
-        Returns:
-            :class:`Connection`. Connection
-        """
-        return self._connection
-    
     def get_rooms(self, sort=True):
         """ Get rooms list.
 
@@ -82,7 +75,9 @@ class Campfire(object):
         Returns:
             array. List of rooms (each room is a dict)
         """
-        rooms = self._connection.get("rooms")
+        response = self.call_api("get", "rooms")
+        rooms = response.json["rooms"]
+
         if sort:
             rooms.sort(key=operator.itemgetter("name"))
         return rooms
@@ -135,7 +130,9 @@ class Campfire(object):
         Returns:
             array. Messages
         """
-        messages = self._connection.get("search/%s" % urllib.quote_plus(terms), key="messages")
+        messages_response = self.call_api("get", "search/{}".format(urllib.quote_plus(terms)))
+        messages = messages_response.json["messages"]
+
         if messages:
             messages = [Message(self, message) for message in messages]
         return messages
